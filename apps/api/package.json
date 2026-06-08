@@ -1,0 +1,37 @@
+{
+  "name": "@bangladesh24/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "db:generate": "cross-env DATABASE_URL=file:./prisma/dev.db prisma generate",
+    "db:push": "cross-env DATABASE_URL=file:./prisma/dev.db prisma generate && tsx src/db/init.ts",
+    "prisma:push": "cross-env DATABASE_URL=file:./prisma/dev.db prisma db push",
+    "ingest": "tsx src/workers/ingest.ts",
+    "score": "tsx src/workers/score.ts"
+  },
+  "dependencies": {
+    "@bangladesh24/shared": "0.1.0",
+    "@google/genai": "^2.8.0",
+    "@prisma/adapter-better-sqlite3": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "better-sqlite3": "^12.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^5.1.0",
+    "rss-parser": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.5",
+    "@types/node": "^25.0.1",
+    "cross-env": "^10.1.0",
+    "prisma": "^7.8.0",
+    "tsx": "^4.20.6"
+  }
+}

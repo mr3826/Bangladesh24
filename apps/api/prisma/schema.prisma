@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Source {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String
+  homepageUrl   String
+  feedUrl       String
+  language      String   @default("en")
+  priority      Int      @default(5)
+  active        Boolean  @default(true)
+  lastFetchedAt DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  stories Story[]
+}
+
+model Story {
+  id              String        @id @default(cuid())
+  sourceId        String
+  externalId      String?
+  title           String
+  summary         String?
+  content         String?
+  link            String        @unique
+  publishedAt     DateTime?
+  ingestedAt      DateTime      @default(now())
+  district        String?
+  division        String?
+  category        StoryCategory @default(GENERAL)
+  importanceScore Float         @default(0)
+  scoreBreakdown  Json?
+  status          StoryStatus   @default(NEW)
+  scriptBangla    String?
+  captionBangla   String?
+  hashtags        String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  source       Source        @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  postingQueue PostingQueue?
+
+  @@index([publishedAt])
+  @@index([importanceScore])
+  @@index([status])
+  @@index([district])
+  @@index([division])
+}
+
+model PostingQueue {
+  id           String      @id @default(cuid())
+  storyId      String      @unique
+  platform     String      @default("manual")
+  status       QueueStatus @default(READY)
+  scheduledFor DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([scheduledFor])
+}
+
+enum StoryStatus {
+  NEW
+  SCORED
+  SELECTED
+  QUEUED
+  ARCHIVED
+}
+
+enum StoryCategory {
+  GENERAL
+  NATIONAL
+  POLITICS
+  WEATHER
+  ECONOMY
+  ACCIDENT
+  DISASTER
+  PUBLIC_NOTICE
+  SPORTS
+  ENTERTAINMENT
+  INTERNATIONAL
+}
+
+enum QueueStatus {
+  READY
+  POSTED
+  SKIPPED
+}

@@ -1,0 +1,24 @@
+{
+  "name": "bangladesh24",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-powered Bangladesh map news reels MVP.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @bangladesh24/shared && npm run build -w @bangladesh24/api && npm run build -w @bangladesh24/admin",
+    "dev": "concurrently \"npm run dev -w @bangladesh24/api\" \"npm run dev -w @bangladesh24/admin\"",
+    "dev:api": "npm run dev -w @bangladesh24/api",
+    "dev:admin": "npm run dev -w @bangladesh24/admin",
+    "db:generate": "npm run db:generate -w @bangladesh24/api",
+    "db:push": "npm run db:push -w @bangladesh24/api",
+    "ingest": "npm run ingest -w @bangladesh24/api",
+    "score": "npm run score -w @bangladesh24/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "typescript": "^5.9.3"
+  }
+}

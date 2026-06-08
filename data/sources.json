@@ -1,0 +1,47 @@
+[
+  {
+    "name": "The Daily Star",
+    "slug": "daily-star",
+    "homepageUrl": "https://www.thedailystar.net",
+    "feedUrl": "https://www.thedailystar.net/rss.xml",
+    "language": "bn",
+    "priority": 8,
+    "active": true
+  },
+  {
+    "name": "Prothom Alo",
+    "slug": "prothom-alo",
+    "homepageUrl": "https://www.prothomalo.com",
+    "feedUrl": "https://www.prothomalo.com/feed",
+    "language": "en",
+    "priority": 8,
+    "active": true
+  },
+  {
+    "name": "The Business Standard",
+    "slug": "business-standard",
+    "homepageUrl": "https://www.tbsnews.net",
+    "feedUrl": "https://www.tbsnews.net/rss.xml",
+    "language": "en",
+    "priority": 7,
+    "active": true
+  },
+  {
+    "name": "Jago News 24",
+    "slug": "jago-news-24",
+    "homepageUrl": "https://www.jagonews24.com",
+    "feedUrl": "https://www.jagonews24.com/rss/rss.xml",
+    "language": "bn",
+    "priority": 7,
+    "active": true
+  },
+  {
+    "name": "Bangladesh Pratidin",
+    "slug": "bangladesh-pratidin",
+    "homepageUrl": "https://www.bd-pratidin.com",
+    "feedUrl": "https://www.bd-pratidin.com/rss.xml",
+    "language": "bn",
+    "priority": 6,
+    "active": true
+  }
+]
