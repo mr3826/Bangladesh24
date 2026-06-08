@@ -19,11 +19,11 @@ dashboardRouter.get("/summary", async (_request, response, next) => {
       topStories
     ] = await Promise.all([
       prisma.source.count({ where: { active: true } }),
-      prisma.story.count(),
-      prisma.story.count({ where: { status: "NEW" } }),
-      prisma.story.count({ where: { status: "SCORED" } }),
-      prisma.story.count({ where: { status: "SELECTED" } }),
-      prisma.postingQueue.count({ where: { status: "READY" } }),
+      prisma.story.count({ where: { isBangladeshLocal: true } }),
+      prisma.story.count({ where: { status: "NEW", isBangladeshLocal: true } }),
+      prisma.story.count({ where: { status: "SCORED", isBangladeshLocal: true } }),
+      prisma.story.count({ where: { status: "SELECTED", isBangladeshLocal: true } }),
+      prisma.postingQueue.count({ where: { status: "READY", story: { isBangladeshLocal: true } } }),
       listSources(),
       getTopStories(8)
     ]);

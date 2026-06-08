@@ -34,6 +34,7 @@ model Story {
   ingestedAt      DateTime      @default(now())
   district        String?
   division        String?
+  isBangladeshLocal Boolean       @default(false)
   category        StoryCategory @default(GENERAL)
   importanceScore Float         @default(0)
   scoreBreakdown  Json?
@@ -41,6 +42,11 @@ model Story {
   scriptBangla    String?
   captionBangla   String?
   hashtags        String?
+  subtitleSrtPath String?
+  subtitleVttPath String?
+  audioPath       String?
+  videoPath       String?
+  renderStatus    String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -52,6 +58,7 @@ model Story {
   @@index([status])
   @@index([district])
   @@index([division])
+  @@index([isBangladeshLocal])
 }
 
 model PostingQueue {

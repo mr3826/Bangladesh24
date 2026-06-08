@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AdminStory } from "@bangladesh24/shared";
-import { ArrowLeft, ExternalLink, ListChecks, RefreshCw, Save, Wand2 } from "lucide-react";
+import { ArrowLeft, Captions, ExternalLink, ListChecks, Mic2, RefreshCw, Save, Video, Wand2 } from "lucide-react";
 import {
   generateStoryScript,
+  generateStorySubtitles,
+  generateStoryVoiceover,
   getReviewStories,
   getStory,
   queueStory,
+  renderStoryVideo,
   updateStoryReview
 } from "../services/api.js";
 
@@ -188,6 +191,34 @@ export function StoryReviewPage({ initialStoryId, onBack }: StoryReviewPageProps
     }
   }
 
+  async function runMediaStep(step: "subtitles" | "voiceover" | "video") {
+    if (!selectedStory) {
+      return;
+    }
+
+    setBusyAction(step);
+    setError(null);
+
+    try {
+      const result =
+        step === "subtitles"
+          ? await generateStorySubtitles(selectedStory.id)
+          : step === "voiceover"
+            ? await generateStoryVoiceover(selectedStory.id)
+            : await renderStoryVideo(selectedStory.id);
+
+      setSelectedStory(result.story);
+      setStories((currentStories) =>
+        currentStories.map((story) => (story.id === result.story.id ? result.story : story))
+      );
+      setNotice(`${step} ready`);
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : `${step} failed`);
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   const isBusy = busyAction !== null;
 
   return (
@@ -215,6 +246,18 @@ export function StoryReviewPage({ initialStoryId, onBack }: StoryReviewPageProps
         <button type="button" title="Save review" disabled={isBusy || !selectedStory} onClick={() => void saveReview()}>
           <Save size={18} aria-hidden="true" />
           Save
+        </button>
+        <button type="button" title="Generate subtitles" disabled={isBusy || !selectedStory} onClick={() => void runMediaStep("subtitles")}>
+          <Captions size={18} aria-hidden="true" />
+          Subtitles
+        </button>
+        <button type="button" title="Generate voiceover" disabled={isBusy || !selectedStory} onClick={() => void runMediaStep("voiceover")}>
+          <Mic2 size={18} aria-hidden="true" />
+          Voiceover
+        </button>
+        <button type="button" title="Render video" disabled={isBusy || !selectedStory} onClick={() => void runMediaStep("video")}>
+          <Video size={18} aria-hidden="true" />
+          Render
         </button>
         <button type="button" title="Queue story" disabled={isBusy || !selectedStory} onClick={() => void approveQueue()}>
           <ListChecks size={18} aria-hidden="true" />
@@ -267,6 +310,14 @@ export function StoryReviewPage({ initialStoryId, onBack }: StoryReviewPageProps
               </div>
 
               <p className="review-summary">{selectedStory.summary ?? selectedStory.title}</p>
+
+              <div className="media-files" aria-label="Generated files">
+                <span>{selectedStory.subtitleSrtPath ? `SRT: ${selectedStory.subtitleSrtPath}` : "SRT pending"}</span>
+                <span>{selectedStory.subtitleVttPath ? `VTT: ${selectedStory.subtitleVttPath}` : "VTT pending"}</span>
+                <span>{selectedStory.audioPath ? `Audio: ${selectedStory.audioPath}` : "Audio pending"}</span>
+                <span>{selectedStory.videoPath ? `Video: ${selectedStory.videoPath}` : "Video pending"}</span>
+                <span>{selectedStory.renderStatus ? `Render: ${selectedStory.renderStatus}` : "Render not started"}</span>
+              </div>
 
               <label className="field">
                 <span>Extra instruction</span>

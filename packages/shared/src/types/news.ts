@@ -43,6 +43,7 @@ export interface AdminStory {
   publishedAt: string | null;
   district: string | null;
   division: string | null;
+  isBangladeshLocal: boolean;
   category: StoryCategory;
   importanceScore: number;
   scoreBreakdown: StoryScoreBreakdown | null;
@@ -50,6 +51,11 @@ export interface AdminStory {
   scriptBangla: string | null;
   captionBangla: string | null;
   hashtags: string | null;
+  subtitleSrtPath: string | null;
+  subtitleVttPath: string | null;
+  audioPath: string | null;
+  videoPath: string | null;
+  renderStatus: string | null;
 }
 
 export interface SourceIngestionResult {
@@ -58,6 +64,7 @@ export interface SourceIngestionResult {
   fetched: number;
   created: number;
   updated: number;
+  skipped: number;
   failed: boolean;
   error?: string;
 }
@@ -68,6 +75,7 @@ export interface IngestionRunResult {
   totalFetched: number;
   totalCreated: number;
   totalUpdated: number;
+  totalSkipped: number;
   results: SourceIngestionResult[];
 }
 
@@ -95,6 +103,23 @@ export interface StoryReviewUpdate {
   captionBangla?: string;
   hashtags?: string;
   status?: string;
+}
+
+export interface SubtitleCue {
+  index: number;
+  startMs: number;
+  endMs: number;
+  text: string;
+}
+
+export interface StoryMediaResult {
+  story: AdminStory;
+  files: {
+    subtitleSrtPath?: string;
+    subtitleVttPath?: string;
+    audioPath?: string;
+    videoPath?: string;
+  };
 }
 
 export interface DashboardSummary {

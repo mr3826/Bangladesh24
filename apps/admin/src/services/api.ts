@@ -5,6 +5,7 @@ import type {
   IngestionRunResult,
   ScoringRunResult,
   SourceSummary,
+  StoryMediaResult,
   StoryReviewUpdate
 } from "@bangladesh24/shared";
 
@@ -80,6 +81,24 @@ export function updateStoryReview(storyId: string, update: StoryReviewUpdate) {
 
 export function queueStory(storyId: string) {
   return requestJson<AdminStory>(`/stories/${storyId}/queue`, {
+    method: "POST"
+  });
+}
+
+export function generateStorySubtitles(storyId: string) {
+  return requestJson<StoryMediaResult>(`/stories/${storyId}/generate-subtitles`, {
+    method: "POST"
+  });
+}
+
+export function generateStoryVoiceover(storyId: string) {
+  return requestJson<StoryMediaResult>(`/stories/${storyId}/generate-voiceover`, {
+    method: "POST"
+  });
+}
+
+export function renderStoryVideo(storyId: string) {
+  return requestJson<StoryMediaResult>(`/stories/${storyId}/render-video`, {
     method: "POST"
   });
 }

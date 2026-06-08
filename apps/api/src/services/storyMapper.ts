@@ -15,13 +15,19 @@ export function mapStory(story: StoryWithSource): AdminStory {
     publishedAt: story.publishedAt?.toISOString() ?? null,
     district: story.district,
     division: story.division,
+    isBangladeshLocal: story.isBangladeshLocal,
     category: story.category,
     importanceScore: story.importanceScore,
     scoreBreakdown: story.scoreBreakdown as StoryScoreBreakdown | null,
     status: story.status,
     scriptBangla: story.scriptBangla,
     captionBangla: story.captionBangla,
-    hashtags: story.hashtags
+    hashtags: story.hashtags,
+    subtitleSrtPath: story.subtitleSrtPath,
+    subtitleVttPath: story.subtitleVttPath,
+    audioPath: story.audioPath,
+    videoPath: story.videoPath,
+    renderStatus: story.renderStatus
   };
 }
 

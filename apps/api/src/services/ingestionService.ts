@@ -3,7 +3,7 @@ import type { Source } from "@prisma/client";
 import type { IngestionRunResult, SourceIngestionResult } from "@bangladesh24/shared";
 import { prisma } from "../db/client.js";
 import { seedSourcesFromConfig } from "./sourceService.js";
-import { classifyCategory, detectLocation } from "./textClassifier.js";
+import { analyzeBangladeshLocality, classifyCategory, detectLocation } from "./textClassifier.js";
 
 const parser = new Parser();
 const FEED_TIMEOUT_MS = 12000;
@@ -49,6 +49,7 @@ export async function ingestSource(source: Source): Promise<SourceIngestionResul
     fetched: 0,
     created: 0,
     updated: 0,
+    skipped: 0,
     failed: false
   };
 
@@ -69,11 +70,33 @@ export async function ingestSource(source: Source): Promise<SourceIngestionResul
       const rawSummary = item.contentSnippet ?? item.summary ?? item.content ?? "";
       const summary = rawSummary ? limitText(stripHtml(rawSummary), 450) : null;
       const content = item.content ? limitText(stripHtml(item.content), 2000) : summary;
-      const combinedText = [title, summary, content].filter(Boolean).join(" ");
+      const combinedText = [title, summary, content, link].filter(Boolean).join(" ");
       const location = detectLocation(combinedText);
+      const locality = analyzeBangladeshLocality(combinedText);
       const category = classifyCategory(combinedText);
       const publishedAt = parsePublishedDate(item.isoDate ?? item.pubDate);
       const existingStory = await prisma.story.findUnique({ where: { link } });
+
+      if (!locality.isBangladeshLocal) {
+        result.skipped += 1;
+
+        if (existingStory) {
+          await prisma.story.update({
+            where: { id: existingStory.id },
+            data: {
+              isBangladeshLocal: false,
+              status: "ARCHIVED",
+              renderStatus: "skipped_non_bd"
+            }
+          });
+          await prisma.postingQueue.updateMany({
+            where: { storyId: existingStory.id },
+            data: { status: "SKIPPED" }
+          });
+        }
+
+        continue;
+      }
 
       await prisma.story.upsert({
         where: { link },
@@ -86,6 +109,7 @@ export async function ingestSource(source: Source): Promise<SourceIngestionResul
           publishedAt,
           district: location.district,
           division: location.division,
+          isBangladeshLocal: true,
           category
         },
         create: {
@@ -98,6 +122,7 @@ export async function ingestSource(source: Source): Promise<SourceIngestionResul
           publishedAt,
           district: location.district,
           division: location.division,
+          isBangladeshLocal: true,
           category
         }
       });
@@ -162,6 +187,7 @@ export async function ingestAllSources(): Promise<IngestionRunResult> {
     totalFetched: results.reduce((sum, result) => sum + result.fetched, 0),
     totalCreated: results.reduce((sum, result) => sum + result.created, 0),
     totalUpdated: results.reduce((sum, result) => sum + result.updated, 0),
+    totalSkipped: results.reduce((sum, result) => sum + result.skipped, 0),
     results
   };
 }

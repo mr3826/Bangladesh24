@@ -2,8 +2,17 @@ import { Router } from "express";
 import { StoryStatus } from "@prisma/client";
 import { prisma } from "../db/client.js";
 import { mapStories } from "../services/storyMapper.js";
-import { getTopStories, queueSelectedStories, scoreNewStories, selectTopStories } from "../services/scoringService.js";
+import {
+  getTopStories,
+  queueSelectedStories,
+  scoreNewStories,
+  selectTopStories,
+  syncBangladeshLocalFlags
+} from "../services/scoringService.js";
 import { generateStoryScript } from "../services/scriptGenerationService.js";
+import { generateStorySubtitles } from "../services/subtitleService.js";
+import { renderStoryVideo } from "../services/videoRenderService.js";
+import { generateStoryVoiceover } from "../services/voiceoverService.js";
 
 export const storiesRouter = Router();
 
@@ -18,9 +27,12 @@ function parseStoryStatus(value: unknown) {
 storiesRouter.get("/", async (request, response, next) => {
   try {
     const limit = Number(request.query.limit ?? 50);
-    const status = typeof request.query.status === "string" ? request.query.status : undefined;
+    const status = parseStoryStatus(request.query.status);
     const stories = await prisma.story.findMany({
-      where: status ? { status: status as never } : undefined,
+      where: {
+        isBangladeshLocal: true,
+        ...(status ? { status } : {})
+      },
       include: { source: true },
       orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
       take: Number.isFinite(limit) ? limit : 50
@@ -46,6 +58,7 @@ storiesRouter.get("/review", async (request, response, next) => {
     const limit = Number(request.query.limit ?? 30);
     const stories = await prisma.story.findMany({
       where: {
+        isBangladeshLocal: true,
         status: {
           in: [StoryStatus.SCORED, StoryStatus.SELECTED, StoryStatus.QUEUED]
         }
@@ -70,6 +83,11 @@ storiesRouter.get("/:id", async (request, response, next) => {
 
     if (!story) {
       response.status(404).json({ error: "Story not found" });
+      return;
+    }
+
+    if (!story.isBangladeshLocal) {
+      response.status(404).json({ error: "Story is not Bangladesh-local" });
       return;
     }
 
@@ -106,6 +124,14 @@ storiesRouter.post("/queue-selected", async (_request, response, next) => {
   }
 });
 
+storiesRouter.post("/sync-locality", async (_request, response, next) => {
+  try {
+    response.json(await syncBangladeshLocalFlags());
+  } catch (error) {
+    next(error);
+  }
+});
+
 storiesRouter.post("/:id/generate-script", async (request, response, next) => {
   try {
     response.json(await generateStoryScript(request.params.id, request.body?.instruction));
@@ -114,8 +140,41 @@ storiesRouter.post("/:id/generate-script", async (request, response, next) => {
   }
 });
 
+storiesRouter.post("/:id/generate-subtitles", async (request, response, next) => {
+  try {
+    response.json(await generateStorySubtitles(request.params.id));
+  } catch (error) {
+    next(error);
+  }
+});
+
+storiesRouter.post("/:id/generate-voiceover", async (request, response, next) => {
+  try {
+    response.json(await generateStoryVoiceover(request.params.id));
+  } catch (error) {
+    next(error);
+  }
+});
+
+storiesRouter.post("/:id/render-video", async (request, response, next) => {
+  try {
+    response.json(await renderStoryVideo(request.params.id));
+  } catch (error) {
+    next(error);
+  }
+});
+
 storiesRouter.patch("/:id/review", async (request, response, next) => {
   try {
+    const existingStory = await prisma.story.findUnique({
+      where: { id: request.params.id }
+    });
+
+    if (!existingStory?.isBangladeshLocal) {
+      response.status(400).json({ error: "Only Bangladesh-local stories can be reviewed" });
+      return;
+    }
+
     const status = parseStoryStatus(request.body?.status);
     const story = await prisma.story.update({
       where: { id: request.params.id },
@@ -138,6 +197,15 @@ storiesRouter.patch("/:id/review", async (request, response, next) => {
 
 storiesRouter.post("/:id/queue", async (request, response, next) => {
   try {
+    const existingStory = await prisma.story.findUnique({
+      where: { id: request.params.id }
+    });
+
+    if (!existingStory?.isBangladeshLocal) {
+      response.status(400).json({ error: "Only Bangladesh-local stories can be queued" });
+      return;
+    }
+
     const story = await prisma.story.update({
       where: { id: request.params.id },
       data: { status: StoryStatus.QUEUED }

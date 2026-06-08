@@ -5,6 +5,7 @@ import type { StoryScoreBreakdown } from "@bangladesh24/shared";
 import { prisma } from "../db/client.js";
 import { scoreStory } from "./scoringService.js";
 import { mapStory } from "./storyMapper.js";
+import { analyzeBangladeshLocality } from "./textClassifier.js";
 
 type StoryWithSource = Story & {
   source: Source;
@@ -87,6 +88,7 @@ function buildPrompt(story: StoryWithSource, extraInstruction?: string) {
 You are Bangladesh24's factual Bangla short-news script editor.
 
 Create a reel-ready script from only the source facts below.
+The event must have happened inside Bangladesh. If the source facts are global, foreign, or only about events outside Bangladesh, do not turn it into a reel.
 Do not add unverified facts, casualty counts, dates, allegations, causes, or locations.
 Use simple modern Bangla, calm news tone, and short sentences.
 Target 35-50 seconds for vertical Reels.
@@ -164,6 +166,14 @@ export async function generateStoryScript(storyId: string, extraInstruction?: st
 
   if (!story) {
     throw new Error("Story not found");
+  }
+
+  const locality = analyzeBangladeshLocality(
+    [story.title, story.summary, story.content, story.link].filter(Boolean).join(" ")
+  );
+
+  if (!story.isBangladeshLocal && !locality.isBangladeshLocal) {
+    throw new Error(`Story is not Bangladesh-local: ${locality.reason}`);
   }
 
   let generatedScript: GeneratedStoryScript;

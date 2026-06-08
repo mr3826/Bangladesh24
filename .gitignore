@@ -13,7 +13,9 @@ outputs/videos/*
 outputs/audio/*
 outputs/subtitles/*
 outputs/thumbnails/*
+outputs/render-inputs/*
 !outputs/videos/.gitkeep
 !outputs/audio/.gitkeep
 !outputs/subtitles/.gitkeep
 !outputs/thumbnails/.gitkeep
+!outputs/render-inputs/.gitkeep

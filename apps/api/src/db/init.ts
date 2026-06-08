@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS "Story" (
   "ingestedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "district" TEXT,
   "division" TEXT,
+  "isBangladeshLocal" BOOLEAN NOT NULL DEFAULT 0,
   "category" TEXT NOT NULL DEFAULT 'GENERAL',
   "importanceScore" REAL NOT NULL DEFAULT 0,
   "scoreBreakdown" JSONB,
@@ -50,6 +51,11 @@ CREATE TABLE IF NOT EXISTS "Story" (
   "scriptBangla" TEXT,
   "captionBangla" TEXT,
   "hashtags" TEXT,
+  "subtitleSrtPath" TEXT,
+  "subtitleVttPath" TEXT,
+  "audioPath" TEXT,
+  "videoPath" TEXT,
+  "renderStatus" TEXT,
   "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT "Story_sourceId_fkey" FOREIGN KEY ("sourceId") REFERENCES "Source" ("id") ON DELETE CASCADE ON UPDATE CASCADE
@@ -74,6 +80,26 @@ CREATE INDEX IF NOT EXISTS "Story_division_idx" ON "Story"("division");
 CREATE INDEX IF NOT EXISTS "PostingQueue_status_idx" ON "PostingQueue"("status");
 CREATE INDEX IF NOT EXISTS "PostingQueue_scheduledFor_idx" ON "PostingQueue"("scheduledFor");
 `);
+
+const existingStoryColumns = new Set(
+  database.prepare(`PRAGMA table_info("Story")`).all().map((column) => (column as { name: string }).name)
+);
+const storyColumnsToAdd = [
+  ["subtitleSrtPath", "TEXT"],
+  ["subtitleVttPath", "TEXT"],
+  ["audioPath", "TEXT"],
+  ["videoPath", "TEXT"],
+  ["renderStatus", "TEXT"],
+  ["isBangladeshLocal", "BOOLEAN NOT NULL DEFAULT 0"]
+] as const;
+
+for (const [columnName, columnType] of storyColumnsToAdd) {
+  if (!existingStoryColumns.has(columnName)) {
+    database.exec(`ALTER TABLE "Story" ADD COLUMN "${columnName}" ${columnType}`);
+  }
+}
+
+database.exec(`CREATE INDEX IF NOT EXISTS "Story_isBangladeshLocal_idx" ON "Story"("isBangladeshLocal")`);
 
 database.close();
 

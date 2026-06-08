@@ -2,6 +2,7 @@ import { Prisma, StoryCategory, StoryStatus, type Source, type Story } from "@pr
 import type { ScoringRunResult, StoryScoreBreakdown } from "@bangladesh24/shared";
 import { prisma } from "../db/client.js";
 import { mapStories } from "./storyMapper.js";
+import { analyzeBangladeshLocality } from "./textClassifier.js";
 
 type StoryWithSource = Story & {
   source: Source;
@@ -144,9 +145,54 @@ export function scoreStory(story: StoryWithSource) {
   };
 }
 
+export async function syncBangladeshLocalFlags() {
+  const stories = await prisma.story.findMany({
+    include: { source: true }
+  });
+  let local = 0;
+  let archived = 0;
+
+  for (const story of stories) {
+    const locality = analyzeBangladeshLocality(
+      [story.title, story.summary, story.content, story.link].filter(Boolean).join(" ")
+    );
+
+    if (locality.isBangladeshLocal) {
+      local += 1;
+      await prisma.story.update({
+        where: { id: story.id },
+        data: {
+          isBangladeshLocal: true,
+          renderStatus: story.renderStatus === "skipped_non_bd" ? null : story.renderStatus
+        }
+      });
+      continue;
+    }
+
+    archived += 1;
+    await prisma.story.update({
+      where: { id: story.id },
+      data: {
+        isBangladeshLocal: false,
+        status: StoryStatus.ARCHIVED,
+        renderStatus: "skipped_non_bd"
+      }
+    });
+    await prisma.postingQueue.updateMany({
+      where: { storyId: story.id },
+      data: { status: "SKIPPED" }
+    });
+  }
+
+  return { checked: stories.length, local, archived };
+}
+
 export async function scoreNewStories(limit = 50): Promise<ScoringRunResult> {
+  await syncBangladeshLocalFlags();
+
   const stories = await prisma.story.findMany({
     where: {
+      isBangladeshLocal: true,
       status: {
         in: [StoryStatus.NEW, StoryStatus.SCORED]
       }
@@ -184,6 +230,7 @@ export async function scoreNewStories(limit = 50): Promise<ScoringRunResult> {
 export async function selectTopStories(limit = 5) {
   const stories = await prisma.story.findMany({
     where: {
+      isBangladeshLocal: true,
       status: StoryStatus.SCORED
     },
     include: { source: true },
@@ -205,7 +252,7 @@ export async function selectTopStories(limit = 5) {
 
 export async function queueSelectedStories() {
   const selectedStories = await prisma.story.findMany({
-    where: { status: StoryStatus.SELECTED },
+    where: { status: StoryStatus.SELECTED, isBangladeshLocal: true },
     orderBy: [{ importanceScore: "desc" }, { publishedAt: "desc" }]
   });
 
@@ -231,6 +278,7 @@ export async function queueSelectedStories() {
 
 export async function getTopStories(limit = 10) {
   const stories = await prisma.story.findMany({
+    where: { isBangladeshLocal: true },
     include: { source: true },
     orderBy: [{ importanceScore: "desc" }, { publishedAt: "desc" }],
     take: limit

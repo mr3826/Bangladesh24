@@ -12,7 +12,8 @@
     "db:push": "cross-env DATABASE_URL=file:./prisma/dev.db prisma generate && tsx src/db/init.ts",
     "prisma:push": "cross-env DATABASE_URL=file:./prisma/dev.db prisma db push",
     "ingest": "tsx src/workers/ingest.ts",
-    "score": "tsx src/workers/score.ts"
+    "score": "tsx src/workers/score.ts",
+    "media": "tsx src/workers/media.ts"
   },
   "dependencies": {
     "@bangladesh24/shared": "0.1.0",
@@ -23,6 +24,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^5.1.0",
+    "node-edge-tts": "^1.2.10",
     "rss-parser": "^3.13.0"
   },
   "devDependencies": {

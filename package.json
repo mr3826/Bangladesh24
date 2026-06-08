@@ -8,14 +8,16 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w @bangladesh24/shared && npm run build -w @bangladesh24/api && npm run build -w @bangladesh24/admin",
+    "build": "npm run build -w @bangladesh24/shared && npm run build -w @bangladesh24/renderer && npm run build -w @bangladesh24/api && npm run build -w @bangladesh24/admin",
     "dev": "concurrently \"npm run dev -w @bangladesh24/api\" \"npm run dev -w @bangladesh24/admin\"",
     "dev:api": "npm run dev -w @bangladesh24/api",
     "dev:admin": "npm run dev -w @bangladesh24/admin",
     "db:generate": "npm run db:generate -w @bangladesh24/api",
     "db:push": "npm run db:push -w @bangladesh24/api",
     "ingest": "npm run ingest -w @bangladesh24/api",
-    "score": "npm run score -w @bangladesh24/api"
+    "score": "npm run score -w @bangladesh24/api",
+    "media": "npm run media -w @bangladesh24/api --",
+    "render:sample": "npm run render:sample -w @bangladesh24/renderer"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
