@@ -1,10 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AdminStory } from "@bangladesh24/shared";
-import { ArrowLeft, Captions, ExternalLink, ListChecks, Mic2, RefreshCw, Save, Video, Wand2 } from "lucide-react";
 import {
+  ArrowLeft,
+  Captions,
+  Clapperboard,
+  ExternalLink,
+  ListChecks,
+  Mic2,
+  RefreshCw,
+  Save,
+  Video,
+  Wand2
+} from "lucide-react";
+import {
+  generateFullReel,
   generateStoryScript,
   generateStorySubtitles,
   generateStoryVoiceover,
+  getOutputUrl,
   getReviewStories,
   getStory,
   queueStory,
@@ -124,23 +137,33 @@ export function StoryReviewPage({ initialStoryId, onBack }: StoryReviewPageProps
     setError(null);
 
     try {
-      const updatedStory = await updateStoryReview(selectedStory.id, {
-        scriptBangla: form.scriptBangla,
-        captionBangla: form.captionBangla,
-        hashtags: form.hashtags,
-        status: selectedStory.status === "QUEUED" ? "QUEUED" : "SELECTED"
-      });
-      setSelectedStory(updatedStory);
+      const updatedStory = await persistCurrentReview();
       setForm(formFromStory(updatedStory));
-      setStories((currentStories) =>
-        currentStories.map((story) => (story.id === updatedStory.id ? updatedStory : story))
-      );
       setNotice("Saved review");
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Save failed");
     } finally {
       setBusyAction(null);
     }
+  }
+
+  async function persistCurrentReview() {
+    if (!selectedStory) {
+      throw new Error("Select a story first");
+    }
+
+    const updatedStory = await updateStoryReview(selectedStory.id, {
+      scriptBangla: form.scriptBangla,
+      captionBangla: form.captionBangla,
+      hashtags: form.hashtags,
+      status: selectedStory.status === "QUEUED" ? "QUEUED" : "SELECTED"
+    });
+    setSelectedStory(updatedStory);
+    setStories((currentStories) =>
+      currentStories.map((story) => (story.id === updatedStory.id ? updatedStory : story))
+    );
+
+    return updatedStory;
   }
 
   async function regenerateScript() {
@@ -219,7 +242,47 @@ export function StoryReviewPage({ initialStoryId, onBack }: StoryReviewPageProps
     }
   }
 
+  async function runFullReel() {
+    if (!selectedStory) {
+      return;
+    }
+
+    const instruction = form.instruction;
+    setBusyAction("full-reel");
+    setError(null);
+
+    try {
+      const savedStory = await persistCurrentReview();
+      const result = await generateFullReel(savedStory.id, instruction, !savedStory.scriptBangla?.trim());
+      setSelectedStory(result.story);
+      setForm({
+        ...formFromStory(result.story),
+        instruction
+      });
+      setStories((currentStories) =>
+        currentStories.map((story) => (story.id === result.story.id ? result.story : story))
+      );
+      setNotice(result.generation ? `${result.generation.generationProvider}: full reel ready` : "Full reel ready");
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Full reel failed");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   const isBusy = busyAction !== null;
+
+  function generatedFile(label: string, outputPath: string | null) {
+    if (!outputPath) {
+      return <span>{label} pending</span>;
+    }
+
+    return (
+      <a href={getOutputUrl(outputPath)} target="_blank" rel="noreferrer">
+        {label}: {outputPath}
+      </a>
+    );
+  }
 
   return (
     <main className="app-shell review-shell">
@@ -254,6 +317,10 @@ export function StoryReviewPage({ initialStoryId, onBack }: StoryReviewPageProps
         <button type="button" title="Generate voiceover" disabled={isBusy || !selectedStory} onClick={() => void runMediaStep("voiceover")}>
           <Mic2 size={18} aria-hidden="true" />
           Voiceover
+        </button>
+        <button type="button" title="Generate full reel" disabled={isBusy || !selectedStory} onClick={() => void runFullReel()}>
+          <Clapperboard size={18} aria-hidden="true" />
+          Full Reel
         </button>
         <button type="button" title="Render video" disabled={isBusy || !selectedStory} onClick={() => void runMediaStep("video")}>
           <Video size={18} aria-hidden="true" />
@@ -311,11 +378,19 @@ export function StoryReviewPage({ initialStoryId, onBack }: StoryReviewPageProps
 
               <p className="review-summary">{selectedStory.summary ?? selectedStory.title}</p>
 
+              {selectedStory.videoPath ? (
+                <video className="render-preview" src={getOutputUrl(selectedStory.videoPath)} controls playsInline />
+              ) : null}
+
+              {selectedStory.audioPath ? (
+                <audio className="audio-preview" src={getOutputUrl(selectedStory.audioPath)} controls />
+              ) : null}
+
               <div className="media-files" aria-label="Generated files">
-                <span>{selectedStory.subtitleSrtPath ? `SRT: ${selectedStory.subtitleSrtPath}` : "SRT pending"}</span>
-                <span>{selectedStory.subtitleVttPath ? `VTT: ${selectedStory.subtitleVttPath}` : "VTT pending"}</span>
-                <span>{selectedStory.audioPath ? `Audio: ${selectedStory.audioPath}` : "Audio pending"}</span>
-                <span>{selectedStory.videoPath ? `Video: ${selectedStory.videoPath}` : "Video pending"}</span>
+                {generatedFile("SRT", selectedStory.subtitleSrtPath)}
+                {generatedFile("VTT", selectedStory.subtitleVttPath)}
+                {generatedFile("Audio", selectedStory.audioPath)}
+                {generatedFile("Video", selectedStory.videoPath)}
                 <span>{selectedStory.renderStatus ? `Render: ${selectedStory.renderStatus}` : "Render not started"}</span>
               </div>
 

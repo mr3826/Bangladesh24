@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { StoryStatus } from "@prisma/client";
 import { prisma } from "../db/client.js";
+import { generateFullStoryReel } from "../services/fullReelService.js";
 import { mapStories } from "../services/storyMapper.js";
 import {
   getTopStories,
@@ -31,7 +32,13 @@ storiesRouter.get("/", async (request, response, next) => {
     const stories = await prisma.story.findMany({
       where: {
         isBangladeshLocal: true,
-        ...(status ? { status } : {})
+        ...(status
+          ? { status }
+          : {
+              status: {
+                not: StoryStatus.ARCHIVED
+              }
+            })
       },
       include: { source: true },
       orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
@@ -159,6 +166,19 @@ storiesRouter.post("/:id/generate-voiceover", async (request, response, next) =>
 storiesRouter.post("/:id/render-video", async (request, response, next) => {
   try {
     response.json(await renderStoryVideo(request.params.id));
+  } catch (error) {
+    next(error);
+  }
+});
+
+storiesRouter.post("/:id/generate-full-reel", async (request, response, next) => {
+  try {
+    response.json(
+      await generateFullStoryReel(request.params.id, {
+        instruction: request.body?.instruction,
+        regenerateScript: Boolean(request.body?.regenerateScript)
+      })
+    );
   } catch (error) {
     next(error);
   }

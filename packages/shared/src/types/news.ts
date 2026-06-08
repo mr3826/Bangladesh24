@@ -122,6 +122,10 @@ export interface StoryMediaResult {
   };
 }
 
+export interface FullReelResult extends StoryMediaResult {
+  generation?: GeneratedStoryScript;
+}
+
 export interface DashboardSummary {
   counts: {
     sources: number;

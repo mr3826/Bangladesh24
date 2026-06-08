@@ -19,7 +19,7 @@ dashboardRouter.get("/summary", async (_request, response, next) => {
       topStories
     ] = await Promise.all([
       prisma.source.count({ where: { active: true } }),
-      prisma.story.count({ where: { isBangladeshLocal: true } }),
+      prisma.story.count({ where: { isBangladeshLocal: true, status: { not: "ARCHIVED" } } }),
       prisma.story.count({ where: { status: "NEW", isBangladeshLocal: true } }),
       prisma.story.count({ where: { status: "SCORED", isBangladeshLocal: true } }),
       prisma.story.count({ where: { status: "SELECTED", isBangladeshLocal: true } }),

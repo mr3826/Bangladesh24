@@ -1,5 +1,12 @@
 import type { MapTarget, SubtitleCue } from "@bangladesh24/shared";
 
+export interface MapFeaturePath {
+  key: string;
+  districtName: string;
+  divisionName: string;
+  path: string;
+}
+
 export interface Bangladesh24ReelProps extends Record<string, unknown> {
   storyId: string;
   title: string;
@@ -7,6 +14,7 @@ export interface Bangladesh24ReelProps extends Record<string, unknown> {
   sourceName: string;
   location: string;
   mapTarget: MapTarget;
+  mapFeatures?: MapFeaturePath[];
   publishedAt: string | null;
   audioPublicPath: string | null;
   durationInSeconds: number;

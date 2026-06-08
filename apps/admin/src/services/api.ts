@@ -1,6 +1,7 @@
 import type {
   AdminStory,
   DashboardSummary,
+  FullReelResult,
   GeneratedStoryScriptResult,
   IngestionRunResult,
   ScoringRunResult,
@@ -10,6 +11,11 @@ import type {
 } from "@bangladesh24/shared";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000";
+
+export function getOutputUrl(outputPath: string) {
+  const normalizedPath = outputPath.replace(/\\/g, "/").replace(/^outputs\//, "");
+  return `${API_BASE_URL}/outputs/${normalizedPath}`;
+}
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -100,5 +106,12 @@ export function generateStoryVoiceover(storyId: string) {
 export function renderStoryVideo(storyId: string) {
   return requestJson<StoryMediaResult>(`/stories/${storyId}/render-video`, {
     method: "POST"
+  });
+}
+
+export function generateFullReel(storyId: string, instruction?: string, regenerateScript = false) {
+  return requestJson<FullReelResult>(`/stories/${storyId}/generate-full-reel`, {
+    method: "POST",
+    body: JSON.stringify({ instruction, regenerateScript })
   });
 }

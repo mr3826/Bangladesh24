@@ -2,7 +2,12 @@ import { Prisma, StoryCategory, StoryStatus, type Source, type Story } from "@pr
 import type { ScoringRunResult, StoryScoreBreakdown } from "@bangladesh24/shared";
 import { prisma } from "../db/client.js";
 import { mapStories } from "./storyMapper.js";
-import { analyzeBangladeshLocality } from "./textClassifier.js";
+import {
+  analyzeBangladeshLocality,
+  analyzeStoryQuality,
+  classifyCategory,
+  detectLocation
+} from "./textClassifier.js";
 
 type StoryWithSource = Story & {
   source: Source;
@@ -36,7 +41,23 @@ const URGENCY_TERMS = [
   "crisis",
   "emergency",
   "price hike",
-  "road blocked"
+  "road blocked",
+  "সতর্কতা",
+  "নিহত",
+  "আহত",
+  "আগুন",
+  "অগ্নিকাণ্ড",
+  "বন্যা",
+  "ঘূর্ণিঝড়",
+  "ঘূর্ণিঝড়",
+  "ধর্মঘট",
+  "অবরোধ",
+  "সংকট",
+  "জরুরি",
+  "দাম",
+  "মূল্য",
+  "সড়ক",
+  "সড়ক"
 ];
 
 function recencyScore(publishedAt: Date | null) {
@@ -151,19 +172,75 @@ export async function syncBangladeshLocalFlags() {
   });
   let local = 0;
   let archived = 0;
+  let qualitySkipped = 0;
 
   for (const story of stories) {
-    const locality = analyzeBangladeshLocality(
-      [story.title, story.summary, story.content, story.link].filter(Boolean).join(" ")
-    );
+    const combinedText = [story.title, story.summary, story.content, story.link].filter(Boolean).join(" ");
+    const location = detectLocation(combinedText);
+    const category = classifyCategory(combinedText);
+    const locality = analyzeBangladeshLocality(combinedText);
 
     if (locality.isBangladeshLocal) {
+      const quality = analyzeStoryQuality(combinedText, category);
       local += 1;
+
+      if (!quality.isUseful) {
+        qualitySkipped += 1;
+        await prisma.story.update({
+          where: { id: story.id },
+          data: {
+            isBangladeshLocal: true,
+            district: location.district,
+            division: location.division,
+            category,
+            status: StoryStatus.ARCHIVED,
+            renderStatus: "skipped_quality"
+          }
+        });
+        await prisma.postingQueue.updateMany({
+          where: { storyId: story.id },
+          data: { status: "SKIPPED" }
+        });
+        continue;
+      }
+
+      const shouldReopenArchivedStory =
+        story.status === StoryStatus.ARCHIVED && Boolean(story.renderStatus?.startsWith("skipped_"));
+      const locationOrCategoryChanged =
+        story.district !== location.district || story.division !== location.division || story.category !== category;
+      const currentLocationName = location.district ?? location.division ?? "Bangladesh";
+      const existingBreakdown = story.scoreBreakdown as StoryScoreBreakdown | null;
+      const hasStaleDraftLocation = Boolean(
+        existingBreakdown?.reason && !existingBreakdown.reason.startsWith(`${currentLocationName} story`)
+      );
+      const shouldRefreshDraft =
+        (locationOrCategoryChanged || hasStaleDraftLocation) &&
+        !story.videoPath &&
+        (story.status === StoryStatus.NEW ||
+          story.status === StoryStatus.SCORED ||
+          story.status === StoryStatus.SELECTED);
+      const refreshedDraft = shouldRefreshDraft
+        ? scoreStory({
+            ...story,
+            district: location.district,
+            division: location.division,
+            category
+          })
+        : null;
       await prisma.story.update({
         where: { id: story.id },
         data: {
           isBangladeshLocal: true,
-          renderStatus: story.renderStatus === "skipped_non_bd" ? null : story.renderStatus
+          district: location.district,
+          division: location.division,
+          category,
+          importanceScore: refreshedDraft?.importanceScore,
+          scoreBreakdown: refreshedDraft?.breakdown as unknown as Prisma.InputJsonObject | undefined,
+          scriptBangla: refreshedDraft?.scriptBangla,
+          captionBangla: refreshedDraft?.captionBangla,
+          hashtags: refreshedDraft?.hashtags,
+          status: shouldReopenArchivedStory ? StoryStatus.NEW : story.status,
+          renderStatus: story.renderStatus?.startsWith("skipped_") ? null : story.renderStatus
         }
       });
       continue;
@@ -174,6 +251,9 @@ export async function syncBangladeshLocalFlags() {
       where: { id: story.id },
       data: {
         isBangladeshLocal: false,
+        district: location.district,
+        division: location.division,
+        category,
         status: StoryStatus.ARCHIVED,
         renderStatus: "skipped_non_bd"
       }
@@ -184,7 +264,7 @@ export async function syncBangladeshLocalFlags() {
     });
   }
 
-  return { checked: stories.length, local, archived };
+  return { checked: stories.length, local, archived, qualitySkipped };
 }
 
 export async function scoreNewStories(limit = 50): Promise<ScoringRunResult> {
@@ -278,7 +358,12 @@ export async function queueSelectedStories() {
 
 export async function getTopStories(limit = 10) {
   const stories = await prisma.story.findMany({
-    where: { isBangladeshLocal: true },
+    where: {
+      isBangladeshLocal: true,
+      status: {
+        not: StoryStatus.ARCHIVED
+      }
+    },
     include: { source: true },
     orderBy: [{ importanceScore: "desc" }, { publishedAt: "desc" }],
     take: limit

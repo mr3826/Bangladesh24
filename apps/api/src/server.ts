@@ -6,12 +6,14 @@ import { dashboardRouter } from "./routes/dashboard.js";
 import { ingestionRouter } from "./routes/ingestion.js";
 import { sourcesRouter } from "./routes/sources.js";
 import { storiesRouter } from "./routes/stories.js";
+import { workspacePath } from "./utils/workspace.js";
 
 const app = express();
 const port = Number(process.env.API_PORT ?? DEFAULT_API_PORT);
 
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
+app.use("/outputs", express.static(workspacePath("outputs")));
 
 app.get("/health", (_request, response) => {
   response.json({

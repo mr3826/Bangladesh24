@@ -3,6 +3,7 @@ import path from "node:path";
 import { bundle } from "@remotion/bundler";
 import { getAudioDurationInSeconds } from "@remotion/media-utils";
 import { renderMedia, selectComposition } from "@remotion/renderer";
+import { loadBangladeshMapFeatures } from "./map/bdDistrictPaths";
 import type { RenderStoryInput } from "./types";
 
 function getArgValue(name: string) {
@@ -46,9 +47,11 @@ async function resolveDuration(input: RenderStoryInput) {
 
 const input = await readInput();
 const durationInSeconds = await resolveDuration(input);
+const mapFeatures = await loadBangladeshMapFeatures();
 const inputProps = {
   ...input,
-  durationInSeconds
+  durationInSeconds,
+  mapFeatures
 };
 
 const serveUrl = await bundle({

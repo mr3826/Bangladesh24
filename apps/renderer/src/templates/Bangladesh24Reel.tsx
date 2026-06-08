@@ -49,7 +49,7 @@ export function Bangladesh24Reel(props: Bangladesh24ReelProps) {
   return (
     <div className="reel">
       {props.audioPublicPath ? <Audio src={staticFile(props.audioPublicPath)} /> : null}
-      <BangladeshMapBackdrop target={props.mapTarget} />
+      <BangladeshMapBackdrop target={props.mapTarget} mapFeatures={props.mapFeatures} />
       <div className="top-band">
         <div className="brand">
           <span>24</span>

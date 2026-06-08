@@ -425,6 +425,26 @@ th {
   overflow-wrap: anywhere;
 }
 
+.media-files a {
+  color: #175f43;
+  font-size: 0.84rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.render-preview {
+  width: min(100%, 360px);
+  aspect-ratio: 9 / 16;
+  border: 1px solid #d7ded4;
+  border-radius: 8px;
+  background: #101a18;
+  justify-self: start;
+}
+
+.audio-preview {
+  width: min(100%, 520px);
+}
+
 .story-meta-strip span:not(.status-pill) {
   min-height: 26px;
   display: inline-flex;

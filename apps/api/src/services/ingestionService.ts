@@ -3,7 +3,12 @@ import type { Source } from "@prisma/client";
 import type { IngestionRunResult, SourceIngestionResult } from "@bangladesh24/shared";
 import { prisma } from "../db/client.js";
 import { seedSourcesFromConfig } from "./sourceService.js";
-import { analyzeBangladeshLocality, classifyCategory, detectLocation } from "./textClassifier.js";
+import {
+  analyzeBangladeshLocality,
+  analyzeStoryQuality,
+  classifyCategory,
+  detectLocation
+} from "./textClassifier.js";
 
 const parser = new Parser();
 const FEED_TIMEOUT_MS = 12000;
@@ -74,6 +79,7 @@ export async function ingestSource(source: Source): Promise<SourceIngestionResul
       const location = detectLocation(combinedText);
       const locality = analyzeBangladeshLocality(combinedText);
       const category = classifyCategory(combinedText);
+      const quality = analyzeStoryQuality(combinedText, category);
       const publishedAt = parsePublishedDate(item.isoDate ?? item.pubDate);
       const existingStory = await prisma.story.findUnique({ where: { link } });
 
@@ -98,6 +104,27 @@ export async function ingestSource(source: Source): Promise<SourceIngestionResul
         continue;
       }
 
+      if (!quality.isUseful) {
+        result.skipped += 1;
+
+        if (existingStory) {
+          await prisma.story.update({
+            where: { id: existingStory.id },
+            data: {
+              isBangladeshLocal: true,
+              status: "ARCHIVED",
+              renderStatus: "skipped_quality"
+            }
+          });
+          await prisma.postingQueue.updateMany({
+            where: { storyId: existingStory.id },
+            data: { status: "SKIPPED" }
+          });
+        }
+
+        continue;
+      }
+
       await prisma.story.upsert({
         where: { link },
         update: {
@@ -110,7 +137,9 @@ export async function ingestSource(source: Source): Promise<SourceIngestionResul
           district: location.district,
           division: location.division,
           isBangladeshLocal: true,
-          category
+          category,
+          status: existingStory?.status === "ARCHIVED" ? "NEW" : undefined,
+          renderStatus: existingStory?.renderStatus?.startsWith("skipped_") ? null : existingStory?.renderStatus
         },
         create: {
           sourceId: source.id,
